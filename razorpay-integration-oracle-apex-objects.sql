@@ -19,7 +19,7 @@ CREATE TABLE fmgn_rzp_orders
     currency                VARCHAR2(240),
     status                  VARCHAR2(240),
     error_code              VARCHAR2(240),
-	error_description       VARCHAR2(240),
+    error_description       VARCHAR2(240),
     receipt_number          VARCHAR2(240),
     created_by              VARCHAR2(240),
     created_on              TIMESTAMP,
@@ -133,7 +133,7 @@ CREATE TABLE fmgn_rzpay_payment_activities
     entity                    VARCHAR2(240),
     payment_amount            NUMBER,
     payment_currency          VARCHAR2(240),
-    payment_date              VARCHAR2(240),
+    payment_date              DATE,
     payment_error_code        VARCHAR2(240),
     payment_error_description VARCHAR2(240),
     order_status              VARCHAR2(240),
@@ -184,17 +184,17 @@ CREATE OR REPLACE
 PACKAGE fmgn_rzp_integration
 AS
   PROCEDURE fmgn_create_rzpay_order(
-      p_amount         VARCHAR2,
-      p_receipt_number VARCHAR2,
-      x_rzpay_order_id out VARCHAR2,
-      x_rzpay_order_amount out NUMBER,
-      x_rzpay_order_status out VARCHAR2,
-      x_rxpay_error_code out VARCHAR2,
-      x_rzpay_error_msg out VARCHAR2,
-      x_rzpay_order_receipt out VARCHAR2);
+      p_amount              IN  VARCHAR2,
+      p_receipt_number      IN  VARCHAR2,
+      x_rzpay_order_id      OUT VARCHAR2,
+      x_rzpay_order_amount  OUT NUMBER,
+      x_rzpay_order_status  OUT VARCHAR2,
+      x_rxpay_error_code    OUT VARCHAR2,
+      x_rzpay_error_msg     OUT VARCHAR2,
+      x_rzpay_order_receipt OUT VARCHAR2);
       
   PROCEDURE fmgn_rzpay_webhook_response(
-      p_webhook_response BLOB);
+      p_webhook_response IN BLOB);
 END fmgn_rzp_integration;
 /
 
@@ -205,21 +205,21 @@ END fmgn_rzp_integration;
 create or replace PACKAGE BODY fmgn_rzp_integration
 AS
 PROCEDURE fmgn_create_rzpay_order( 
-    p_amount         VARCHAR2, 
-    p_receipt_number VARCHAR2, 
-    x_rzpay_order_id OUT VARCHAR2, 
-    x_rzpay_order_amount OUT NUMBER, 
-    x_rzpay_order_status OUT VARCHAR2, 
-	x_rxpay_error_code OUT VARCHAR2, 
-    x_rzpay_error_msg OUT VARCHAR2, 
+    p_amount              IN  VARCHAR2, 
+    p_receipt_number      IN  VARCHAR2, 
+    x_rzpay_order_id      OUT VARCHAR2, 
+    x_rzpay_order_amount  OUT NUMBER, 
+    x_rzpay_order_status  OUT VARCHAR2, 
+    x_rxpay_error_code    OUT VARCHAR2, 
+    x_rzpay_error_msg     OUT VARCHAR2, 
     x_rzpay_order_receipt OUT VARCHAR2) 
 IS 
-  l_code VARCHAR2(240); 
-  l_response CLOB; 
-  l_json apex_json.t_values; 
-  l_rzpay_order_id   VARCHAR2(240); 
-  l_rzpay_api_key    VARCHAR2(240) := '<<RAZORPAY_KEY_API>>'; 
-  l_rzpay_api_secret VARCHAR2(240) := '<<RAZORPAY_KEY_SECRET>>'; 
+  l_code              VARCHAR2(240); 
+  l_response          CLOB; 
+  l_json              apex_json.t_values; 
+  l_rzpay_order_id    VARCHAR2(240); 
+  l_rzpay_api_key     VARCHAR2(240) := '<<YOUR_RAZORPAY_KEY_API>>'; 
+  l_rzpay_api_secret  VARCHAR2(240) := '<<YOUR_RAZORPAY_KEY_SECRET>>'; 
   l_order_currency    VARCHAR2(240) := 'INR'; 
 BEGIN 
   apex_web_service.g_request_headers.DELETE; 
@@ -234,15 +234,13 @@ BEGIN
   apex_json.write('receipt', p_receipt_number); 
   apex_json.close_object;  
      
-  -- dbms_output.put_line('p_amount '||p_amount); 
-  -- create order 
   l_response := apex_web_service.make_rest_request(p_url => 'https://api.razorpay.com/v1/orders',  
                                                    p_http_method => 'POST',  
                                                    p_username => l_rzpay_api_key, -- razorpay api key 
                                                    p_password => l_rzpay_api_secret, -- razorpay api secret available in dashboard 
                                                    p_body     => apex_json.get_clob_output 
                                                    ); 
-   --dbms_output.put_line(l_response); 
+						   
     if apex_web_service.g_status_code not between 200 and 299 then 
         raise_application_error(-20000, 'HTTP-'|| apex_web_service.g_status_code); 
     end if; 
@@ -268,7 +266,7 @@ BEGIN
         amount, 
         currency, 
         status, 
-		error_code, 
+	error_code, 
         error_description, 
         receipt_number 
       ) 
@@ -278,7 +276,7 @@ BEGIN
         x_rzpay_order_amount, 
         'INR', 
         x_rzpay_order_status, 
-		x_rxpay_error_code, 
+	x_rxpay_error_code, 
         x_rzpay_error_msg, 
         x_rzpay_order_receipt 
       );
@@ -289,7 +287,7 @@ WHEN others THEN
 END fmgn_create_rzpay_order; 
 
 PROCEDURE fmgn_rzpay_webhook_response(
-    p_webhook_response BLOB)
+    p_webhook_response IN BLOB)
 AS
   l_clob CLOB;
   l_dest_offsset          INTEGER := 1;
@@ -310,7 +308,6 @@ BEGIN
                            lang_context => l_lang_context , 
                            warning => l_warning 
                          );
-  -- store the full body
   
   apex_json.parse (l_clob);
   
