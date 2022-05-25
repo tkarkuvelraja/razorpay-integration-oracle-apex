@@ -273,7 +273,7 @@ BEGIN
       VALUES 
       ( 
         x_rzpay_order_id, 
-        x_rzpay_order_amount, 
+        x_rzpay_order_amount/100, 
         'INR', 
         x_rzpay_order_status, 
 	x_rxpay_error_code, 
